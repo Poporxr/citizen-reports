@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Citizen Report",
+    "slug": "citizen-report",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "citizenreport",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.citizenreport.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
