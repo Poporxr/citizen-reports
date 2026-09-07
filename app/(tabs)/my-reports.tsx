@@ -1,50 +1,82 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
+import FadeInView from "../../components/FadeInView";
 import IncidentCard from "../../components/IncidentCard";
+import { IncidentCardSkeleton } from "../../components/Skeleton";
 import { myReports } from "../../data/incidents";
-import { colors, font, radius, spacing } from "../../theme";
+import { colors, font, radius, shadow, spacing } from "../../theme";
 
-const segments = ["All", "Active"] as const;
+const segments = ["All", "Active", "Resolved"] as const;
 
 export default function MyReportsScreen() {
   const router = useRouter();
   const [segment, setSegment] = useState<(typeof segments)[number]>("All");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const visible =
-    segment === "All" ? myReports : myReports.filter((report) => report.active);
+    segment === "All"
+      ? myReports
+      : segment === "Active"
+      ? myReports.filter((report) => report.active)
+      : myReports.filter((report) => !report.active);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Reports</Text>
-        <Text style={styles.subtitle}>Incidents you've submitted</Text>
-      </View>
+      <FadeInView delay={0} slideFrom={0} duration={400}>
+        <View style={styles.header}>
+          <Text style={styles.title}>My Reports</Text>
+          <Text style={styles.subtitle}>
+            {myReports.length} incident{myReports.length !== 1 ? "s" : ""} submitted
+          </Text>
+        </View>
+      </FadeInView>
 
-      <View style={styles.segmented}>
-        {segments.map((item) => {
-          const active = segment === item;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => setSegment(item)}
-              style={[styles.segment, active && styles.segmentActive]}
-            >
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <FadeInView delay={100} slideFrom={10}>
+        <View style={styles.segmented}>
+          {segments.map((item) => {
+            const active = segment === item;
+            return (
+              <Pressable
+                key={item}
+                onPress={() => setSegment(item)}
+                style={[
+                  styles.segment,
+                  active && styles.segmentActive,
+                  active && shadow.sm,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    active && styles.segmentTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </FadeInView>
 
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       >
-        {visible.length === 0 ? (
+        {loading ? (
+          <>
+            <IncidentCardSkeleton />
+            <IncidentCardSkeleton />
+          </>
+        ) : visible.length === 0 ? (
           <EmptyState
             title="No reports yet"
             message="When you report an incident, it'll appear here."
@@ -52,10 +84,11 @@ export default function MyReportsScreen() {
             onAction={() => router.push("/create")}
           />
         ) : (
-          visible.map((incident) => (
+          visible.map((incident, index) => (
             <IncidentCard
               key={incident.id}
               incident={incident}
+              index={index}
               onPress={() => router.push(`/incident/${incident.id}`)}
             />
           ))
@@ -72,15 +105,17 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs,
   },
   title: {
-    fontSize: font.h2,
-    fontWeight: "700",
+    fontSize: font.h1,
+    fontWeight: "800",
     color: colors.text,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    marginTop: spacing.xs,
+    marginTop: 2,
     fontSize: font.small,
     color: colors.textMuted,
   },
@@ -88,19 +123,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
     marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
     padding: spacing.xs,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
   },
   segment: {
     flex: 1,
-    height: 40,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
   },
   segmentActive: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceElevated,
   },
   segmentText: {
     fontSize: font.small,
@@ -108,11 +144,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   segmentTextActive: {
-    color: colors.text,
-    fontWeight: "600",
+    color: colors.primary,
+    fontWeight: "700",
   },
   list: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxxl,
   },
 });

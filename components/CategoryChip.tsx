@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, font, radius, spacing } from "../theme";
+import { colors, font, radius } from "../theme";
 
 type Props = {
   label: string;
@@ -11,34 +11,47 @@ export default function CategoryChip({ label, selected = false, onPress }: Props
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
-      hitSlop={6}
+      hitSlop={4}
+      style={({ pressed }) => [
+        styles.chip,
+        selected ? styles.chipSelected : styles.chipUnselected,
+        pressed && styles.chipPressed,
+      ]}
     >
-      <Text style={[styles.label, selected && styles.labelSelected]}>{label}</Text>
+      <Text style={[styles.label, selected && styles.labelSelected]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: spacing.lg,
-    height: 38,
-    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipUnselected: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderLight,
   },
   chipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  chipPressed: {
+    opacity: 0.85,
+  },
   label: {
-    fontSize: font.small,
-    color: colors.textMuted,
-    fontWeight: "500",
+    fontSize: font.tiny + 1,
+    color: colors.textSecondary,
+    fontWeight: "600",
   },
   labelSelected: {
-    color: colors.primaryText,
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });

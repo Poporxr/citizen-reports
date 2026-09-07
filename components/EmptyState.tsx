@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, font, radius, spacing } from "../theme";
+import FadeInView from "./FadeInView";
 import PrimaryButton from "./PrimaryButton";
+import { colors, font, radius, spacing } from "../theme";
 
 type Props = {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -19,9 +20,11 @@ export default function EmptyState({
   onAction,
 }: Props) {
   return (
-    <View style={styles.wrapper}>
+    <FadeInView style={styles.wrapper}>
       <View style={styles.iconCircle}>
-        <Ionicons name={icon} size={26} color={colors.textMuted} />
+        <View style={styles.iconInner}>
+          <Ionicons name={icon} size={28} color={colors.primary} />
+        </View>
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -30,28 +33,36 @@ export default function EmptyState({
           <PrimaryButton label={actionLabel} onPress={onAction} />
         </View>
       ) : null}
-    </View>
+    </FadeInView>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: "center",
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
+    width: 80,
+    height: 80,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primaryGhost,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  iconInner: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: font.h3,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
   },
   message: {
@@ -59,7 +70,7 @@ const styles = StyleSheet.create({
     fontSize: font.small,
     color: colors.textMuted,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   action: {
     marginTop: spacing.xl,

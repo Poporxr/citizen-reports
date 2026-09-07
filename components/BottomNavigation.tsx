@@ -1,19 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, font, radius, spacing } from "../theme";
+import { colors, font, radius, shadow, spacing } from "../theme";
 
 const tabs: {
   name: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  iconFilled: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { name: "home", label: "Home", icon: "home-outline" },
-  { name: "explore", label: "Explore", icon: "search-outline" },
-  { name: "my-reports", label: "My Reports", icon: "list-outline" },
-  { name: "profile", label: "Profile", icon: "person-outline" },
+  { name: "home", label: "Home", icon: "home-outline", iconFilled: "home" },
+  { name: "explore", label: "Explore", icon: "compass-outline", iconFilled: "compass" },
+  { name: "my-reports", label: "Reports", icon: "document-text-outline", iconFilled: "document-text" },
+  { name: "profile", label: "Profile", icon: "person-outline", iconFilled: "person" },
 ];
 
 export default function BottomNavigation({ state, navigation }: BottomTabBarProps) {
@@ -23,6 +25,39 @@ export default function BottomNavigation({ state, navigation }: BottomTabBarProp
   const left = tabs.slice(0, 2);
   const right = tabs.slice(2);
 
+  const fabScale = useRef(new Animated.Value(0)).current;
+  const fabRotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(fabScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 12,
+      bounciness: 8,
+    }).start();
+  }, []);
+
+  const handleFabPress = () => {
+    Animated.sequence([
+      Animated.timing(fabRotation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fabRotation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    router.push("/create");
+  };
+
+  const spin = fabRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "90deg"],
+  });
+
   const renderTab = (tab: (typeof tabs)[number]) => {
     const focused = activeName === tab.name;
     return (
@@ -31,12 +66,18 @@ export default function BottomNavigation({ state, navigation }: BottomTabBarProp
         onPress={() => navigation.navigate(tab.name)}
         style={styles.tab}
       >
+        <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
         <Ionicons
-          name={tab.icon}
+          name={focused ? tab.iconFilled : tab.icon}
           size={22}
           color={focused ? colors.primary : colors.textMuted}
         />
-        <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            focused && styles.tabLabelActive,
+          ]}
+        >
           {tab.label}
         </Text>
       </Pressable>
@@ -48,13 +89,25 @@ export default function BottomNavigation({ state, navigation }: BottomTabBarProp
       <View style={styles.row}>
         {left.map(renderTab)}
         <View style={styles.centerSlot}>
-          <Pressable
-            onPress={() => router.push("/create")}
-            style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
-            accessibilityLabel="Report incident"
+          <Animated.View
+            style={[
+              styles.fabShadow,
+              { transform: [{ scale: fabScale }] },
+            ]}
           >
-            <Ionicons name="add" size={28} color={colors.primaryText} />
-          </Pressable>
+            <Pressable
+              onPress={handleFabPress}
+              style={({ pressed }) => [
+                styles.reportButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityLabel="Report incident"
+            >
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <Ionicons name="add" size={28} color={colors.primaryText} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
         </View>
         {right.map(renderTab)}
       </View>
@@ -64,10 +117,10 @@ export default function BottomNavigation({ state, navigation }: BottomTabBarProp
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-    paddingTop: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    paddingTop: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderLight,
   },
   row: {
     flexDirection: "row",
@@ -77,33 +130,47 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
-    gap: 2,
+    minHeight: 50,
+    gap: 3,
+  },
+  tabIndicator: {
+    width: 20,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "transparent",
+    marginBottom: 4,
+  },
+  tabIndicatorActive: {
+    backgroundColor: colors.primary,
   },
   tabLabel: {
     fontSize: font.tiny,
     color: colors.textMuted,
+    fontWeight: "500",
   },
   tabLabelActive: {
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   centerSlot: {
     flex: 1,
     alignItems: "center",
   },
+  fabShadow: {
+    marginTop: -32,
+    ...shadow.glow,
+  },
   reportButton: {
-    width: 58,
-    height: 58,
+    width: 60,
+    height: 60,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -30,
     borderWidth: 4,
-    borderColor: colors.background,
+    borderColor: colors.surfaceElevated,
   },
   pressed: {
-    opacity: 0.85,
+    backgroundColor: colors.primaryDark,
   },
 });
