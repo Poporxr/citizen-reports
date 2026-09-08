@@ -20,9 +20,9 @@ export interface IncidentDoc {
   description: string;
   category: Category;
   imageUrl: string;
-  latitude: number;
-  longitude: number;
-  locationName: string;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
   userId: string;
   userName: string;
   createdAt: any;
@@ -36,9 +36,7 @@ export function docToIncident(doc: IncidentDoc): Incident {
     category: doc.category,
     title: doc.title,
     description: doc.description,
-    location:
-      doc.locationName ||
-      `${doc.latitude ? doc.latitude.toFixed(3) : 0}, ${doc.longitude ? doc.longitude.toFixed(3) : 0}`,
+    location: doc.locationName || "Location unavailable",
     latitude: doc.latitude,
     longitude: doc.longitude,
     time: formatRelativeTime(doc.createdAt),
@@ -53,9 +51,9 @@ export interface CreateIncidentInput {
   description: string;
   category: Category;
   imageUri: string;
-  latitude: number;
-  longitude: number;
-  locationName?: string;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
   userId: string;
   userName: string;
 }
@@ -193,7 +191,7 @@ export async function createIncident(
     imageUrl,
     latitude: input.latitude,
     longitude: input.longitude,
-    locationName: input.locationName?.trim() || "Unknown Location",
+    locationName: input.locationName?.trim() || null,
     userId: input.userId,
     userName: input.userName || "Anonymous",
     createdAt: serverTimestamp(),
@@ -239,9 +237,9 @@ export function subscribeIncidents(
           description: data.description || "",
           category: data.category || "Other",
           imageUrl: data.imageUrl || "",
-          latitude: data.latitude ?? 0,
-          longitude: data.longitude ?? 0,
-          locationName: data.locationName || "",
+          latitude: typeof data.latitude === "number" ? data.latitude : null,
+          longitude: typeof data.longitude === "number" ? data.longitude : null,
+          locationName: data.locationName || null,
           userId: data.userId || "",
           userName: data.userName || "Anonymous",
           createdAt: data.createdAt,
@@ -296,9 +294,9 @@ export function subscribeMyReports(
           description: data.description || "",
           category: data.category || "Other",
           imageUrl: data.imageUrl || "",
-          latitude: data.latitude ?? 0,
-          longitude: data.longitude ?? 0,
-          locationName: data.locationName || "",
+          latitude: typeof data.latitude === "number" ? data.latitude : null,
+          longitude: typeof data.longitude === "number" ? data.longitude : null,
+          locationName: data.locationName || null,
           userId: data.userId || "",
           userName: data.userName || "Anonymous",
           createdAt: data.createdAt,
@@ -343,9 +341,9 @@ export async function getIncidentById(id: string): Promise<IncidentDoc | null> {
       description: data.description || "",
       category: data.category || "Other",
       imageUrl: data.imageUrl || "",
-      latitude: data.latitude ?? 0,
-      longitude: data.longitude ?? 0,
-      locationName: data.locationName || "",
+      latitude: typeof data.latitude === "number" ? data.latitude : null,
+      longitude: typeof data.longitude === "number" ? data.longitude : null,
+      locationName: data.locationName || null,
       userId: data.userId || "",
       userName: data.userName || "Anonymous",
       createdAt: data.createdAt,

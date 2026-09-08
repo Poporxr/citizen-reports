@@ -23,8 +23,8 @@ export type Incident = {
   title: string;
   description: string;
   location: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   time: string;
   reporter: string;
   image: string;

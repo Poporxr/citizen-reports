@@ -31,10 +31,6 @@ import { categories, type Category } from "../data/incidents";
 import { createIncident } from "../services/incidents";
 import { colors, font, radius, shadow, spacing } from "../theme";
 
-const DEFAULT_LATITUDE = 7.7322;
-const DEFAULT_LONGITUDE = 8.5391;
-const DEFAULT_LOCATION_NAME = "Makurdi, Benue";
-
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Accident: "car",
   Fighting: "people",
@@ -43,6 +39,18 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Theft: "hand-left",
   Other: "ellipsis-horizontal-circle",
 };
+
+function formatLocationName(place: Location.LocationGeocodedAddress): string | null {
+  const city = place.city || place.district || place.subregion || place.name;
+  const region = place.region
+    ? place.region.endsWith("State")
+      ? place.region
+      : `${place.region} State`
+    : null;
+  const country = place.country;
+
+  return [city, region || country].filter(Boolean).join(", ") || null;
+}
 
 const openAppSettings = () => {
   void Linking.openSettings();
@@ -68,10 +76,11 @@ export default function CreateIncidentScreen() {
   const descriptionRef = useRef<TextInput>(null);
 
   // Location state
-  const [latitude, setLatitude] = useState(DEFAULT_LATITUDE);
-  const [longitude, setLongitude] = useState(DEFAULT_LONGITUDE);
-  const [locationName, setLocationName] = useState(DEFAULT_LOCATION_NAME);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationUnavailable, setLocationUnavailable] = useState(false);
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -87,11 +96,20 @@ export default function CreateIncidentScreen() {
 
     async function fetchLocation() {
       setLocationLoading(true);
+      setLocationUnavailable(false);
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          // Use default location without blocking
-          if (isMounted) setLocationLoading(false);
+        const currentPermission = await Location.getForegroundPermissionsAsync();
+        const permission = currentPermission.granted
+          ? currentPermission
+          : await Location.requestForegroundPermissionsAsync();
+
+        if (!permission.granted) {
+          if (isMounted) {
+            setLatitude(null);
+            setLongitude(null);
+            setLocationName(null);
+            setLocationUnavailable(true);
+          }
           return;
         }
 
@@ -103,6 +121,7 @@ export default function CreateIncidentScreen() {
 
         setLatitude(position.coords.latitude);
         setLongitude(position.coords.longitude);
+        setLocationName(null);
 
         // Attempt reverse geocoding
         try {
@@ -112,19 +131,19 @@ export default function CreateIncidentScreen() {
           });
 
           if (isMounted && geocoded && geocoded.length > 0) {
-            const place = geocoded[0];
-            const city = place.city || place.subregion || place.name || "";
-            const region = place.region || place.country || "";
-            const readable = [city, region].filter(Boolean).join(", ");
-            if (readable) {
-              setLocationName(readable);
-            }
+            setLocationName(formatLocationName(geocoded[0]));
           }
         } catch {
           // Non-blocking fallback
         }
       } catch (err) {
         console.warn("Location error:", err);
+        if (isMounted) {
+          setLatitude(null);
+          setLongitude(null);
+          setLocationName(null);
+          setLocationUnavailable(true);
+        }
       } finally {
         if (isMounted) setLocationLoading(false);
       }
@@ -270,6 +289,15 @@ export default function CreateIncidentScreen() {
 
   const canSubmit =
     category !== null && title.trim().length > 0 && imageUri !== null;
+  const hasCoordinates = latitude !== null && longitude !== null;
+  const displayedLocation = locationLoading
+    ? "Detecting location..."
+    : locationName || (hasCoordinates ? "Current location detected" : "Location unavailable");
+  const displayedCoordinates = hasCoordinates
+    ? `Lat: ${latitude.toFixed(4)} • Lng: ${longitude.toFixed(4)}`
+    : locationUnavailable
+      ? "Permission denied or location unavailable"
+      : "Coordinates not detected yet";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -442,18 +470,23 @@ export default function CreateIncidentScreen() {
                   )}
                 </View>
                 <Text style={styles.locationText} numberOfLines={1}>
-                  {locationLoading
-                    ? "Acquiring GPS location..."
-                    : locationName}
+                  {displayedLocation}
                 </Text>
-                <View style={styles.locationLive}>
+                <View
+                  style={[
+                    styles.locationLive,
+                    !hasCoordinates && styles.locationUnavailable,
+                  ]}
+                >
                   <View style={styles.locationLiveDot} />
-                  <Text style={styles.locationLiveText}>Live</Text>
+                  <Text style={styles.locationLiveText}>
+                    {hasCoordinates ? "Live" : "Off"}
+                  </Text>
                 </View>
               </View>
               <View style={styles.coordsRow}>
                 <Text style={styles.coords}>
-                  Lat: {latitude.toFixed(4)} • Lng: {longitude.toFixed(4)}
+                  {displayedCoordinates}
                 </Text>
               </View>
             </View>
@@ -761,6 +794,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radius.pill,
+  },
+  locationUnavailable: {
+    backgroundColor: colors.surface,
   },
   locationLiveDot: {
     width: 6,

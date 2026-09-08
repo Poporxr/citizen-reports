@@ -320,13 +320,15 @@ export default function IncidentDetailsScreen() {
           </View>
         </View>
 
-        {/* ── Coordinates row ── */}
-        <View style={styles.coordsRow}>
-          <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
-          <Text style={styles.coordsText}>
-            {incident.latitude.toFixed(4)}° N, {incident.longitude.toFixed(4)}° E
-          </Text>
-        </View>
+        {/* Coordinates row */}
+        {incident.latitude !== null && incident.longitude !== null ? (
+          <View style={styles.coordsRow}>
+            <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.coordsText}>
+              {incident.latitude.toFixed(4)} deg N, {incident.longitude.toFixed(4)} deg E
+            </Text>
+          </View>
+        ) : null}
 
         {/* ── Engagement Row ── */}
         <View style={styles.engagementRow}>

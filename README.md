@@ -1,7 +1,7 @@
 # Citizen Report — Expo UI
 
-UI only. No Firebase, auth, APIs, storage, notifications or geolocation.
-All actions are placeholder functions and all content is mock data.
+Expo MVP with Firebase auth/storage data flows, Cloudinary image uploads, and
+foreground geolocation for incident reports.
 
 ## Run
 
