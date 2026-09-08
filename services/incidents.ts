@@ -87,38 +87,70 @@ export function formatRelativeTime(timestamp: any): string {
   return date.toLocaleDateString();
 }
 
+const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
 /**
- * Upload an image file to Firebase Storage
- * Path: incidents/{userId}/{timestamp}.jpg
+ * Upload an image file to Cloudinary (with fallback to Firebase Storage)
  */
 export async function uploadIncidentImage(
   imageUri: string,
   userId: string
 ): Promise<string> {
-  if (!isFirebaseConfigured) {
-    throw new Error(
-      "Firebase is not configured. Please add your credentials to .env"
-    );
+  // 1. Prefer Cloudinary if configured
+  if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+    try {
+      const data = new FormData();
+      data.append("file", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: `incident_${userId}_${Date.now()}.jpg`,
+      } as any);
+      data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      data.append("folder", `incidents/${userId}`);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      const json = await response.json();
+      if (!response.ok || !json.secure_url) {
+        throw new Error(json.error?.message || "Cloudinary upload failed");
+      }
+      return json.secure_url;
+    } catch (error: any) {
+      console.warn("Cloudinary upload failed, attempting fallback:", error);
+    }
   }
 
-  try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    const filename = `${Date.now()}.jpg`;
-    const storageRef = ref(storage, `incidents/${userId}/${filename}`);
+  // 2. Fallback to Firebase Storage
+  if (isFirebaseConfigured) {
+    try {
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      const filename = `${Date.now()}.jpg`;
+      const storageRef = ref(storage, `incidents/${userId}/${filename}`);
 
-    await uploadBytes(storageRef, blob, {
-      contentType: "image/jpeg",
-    });
+      await uploadBytes(storageRef, blob, {
+        contentType: "image/jpeg",
+      });
 
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
-  } catch (error: any) {
-    console.error("Storage upload error:", error);
-    throw new Error(
-      error.message || "Failed to upload incident picture to Firebase Storage."
-    );
+      return await getDownloadURL(storageRef);
+    } catch (error: any) {
+      console.error("Storage upload error:", error);
+      throw new Error(
+        error.message || "Failed to upload incident picture."
+      );
+    }
   }
+
+  throw new Error(
+    "No storage service is configured. Please check your credentials in .env"
+  );
 }
 
 /**

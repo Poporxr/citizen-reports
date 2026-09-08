@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,7 +31,23 @@ export default function ExploreScreen() {
   const [selected, setSelected] = useState<string>("All");
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    const unsub = subscribeIncidents(
+      (data) => {
+        setRawIncidents(data);
+        setRefreshing(false);
+      },
+      () => setRefreshing(false)
+    );
+    setTimeout(() => {
+      setRefreshing(false);
+      unsub();
+    }, 800);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -90,10 +108,17 @@ export default function ExploreScreen() {
               onChangeText={setQuery}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
+              returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
               style={styles.input}
             />
             {query.length > 0 && (
-              <Pressable onPress={() => setQuery("")}>
+              <Pressable
+                onPress={() => {
+                  setQuery("");
+                  Keyboard.dismiss();
+                }}
+              >
                 <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </Pressable>
             )}
@@ -116,13 +141,17 @@ export default function ExploreScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chips}
           style={styles.chipsRow}
+          keyboardShouldPersistTaps="handled"
         >
           {filterCategories.map((category) => (
             <CategoryChip
               key={category}
               label={category}
               selected={selected === category}
-              onPress={() => setSelected(category)}
+              onPress={() => {
+                Keyboard.dismiss();
+                setSelected(category);
+              }}
             />
           ))}
         </ScrollView>
@@ -131,6 +160,16 @@ export default function ExploreScreen() {
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         {loading ? (
           <>

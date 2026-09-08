@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -50,6 +53,8 @@ export default function CreateIncidentScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
+
+  const descriptionRef = useRef<TextInput>(null);
 
   // Location state
   const [latitude, setLatitude] = useState(DEFAULT_LATITUDE);
@@ -145,14 +150,10 @@ export default function CreateIncidentScreen() {
   const handlePickFromLibrary = async () => {
     setPhotoPickerOpen(false);
     try {
-      const { status } =
+      // On modern iOS and Android, launchImageLibraryAsync invokes the system photo picker
+      const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!permission.granted && permission.canAskAgain) {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Permission to access media library is required to select photos."
-        );
-        return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -168,6 +169,10 @@ export default function CreateIncidentScreen() {
       }
     } catch (err: any) {
       console.warn("Image picker error:", err);
+      Alert.alert(
+        "Unable to Open Photos",
+        "Please check your device settings to allow photo access."
+      );
     }
   };
 
@@ -263,108 +268,126 @@ export default function CreateIncidentScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <FadeInView delay={100} slideFrom={15}>
-            <Text style={styles.subtitle}>
-              Help others stay informed about what's happening around you.
-            </Text>
-          </FadeInView>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <FadeInView delay={100} slideFrom={15}>
+              <Text style={styles.subtitle}>
+                Help others stay informed about what's happening around you.
+              </Text>
+            </FadeInView>
 
-          {/* Incident Photo Selector */}
-          <FadeInView delay={150} slideFrom={15}>
-            {imageUri ? (
-              <View style={styles.photoPreviewWrapper}>
-                <Image
-                  source={{ uri: imageUri }}
-                  style={styles.photoPreview}
-                  resizeMode="cover"
-                />
-                <Pressable
-                  style={styles.changePhotoBtn}
-                  onPress={() => setPhotoPickerOpen(true)}
-                >
-                  <Ionicons
-                    name="camera-outline"
-                    size={16}
-                    color={colors.primaryText}
+            {/* Incident Photo Selector */}
+            <FadeInView delay={150} slideFrom={15}>
+              {imageUri ? (
+                <View style={styles.photoPreviewWrapper}>
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
                   />
-                  <Text style={styles.changePhotoText}>Change Photo</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <ScalePress onPress={() => setPhotoPickerOpen(true)}>
-                <View style={styles.photoBox}>
-                  <View style={styles.photoIcon}>
-                    <Ionicons name="camera" size={26} color={colors.primary} />
-                  </View>
-                  <Text style={styles.photoTitle}>Add incident photo</Text>
-                  <Text style={styles.photoHint}>
-                    Take a photo or choose from gallery
-                  </Text>
-                </View>
-              </ScalePress>
-            )}
-          </FadeInView>
-
-          {/* Category Selector */}
-          <FadeInView delay={200} slideFrom={15}>
-            <Text style={styles.label}>Category</Text>
-            <Pressable
-              onPress={() => setPickerOpen(true)}
-              style={({ pressed }) => [
-                styles.select,
-                pressed && { backgroundColor: colors.surface },
-              ]}
-            >
-              {category ? (
-                <View style={styles.selectedCategory}>
-                  <View style={styles.categoryIconWrap}>
+                  <Pressable
+                    style={styles.changePhotoBtn}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setPhotoPickerOpen(true);
+                    }}
+                  >
                     <Ionicons
-                      name={categoryIcons[category] ?? "ellipsis-horizontal-circle"}
+                      name="camera-outline"
                       size={16}
-                      color={colors.primary}
+                      color={colors.primaryText}
                     />
-                  </View>
-                  <Text style={styles.selectText}>{category}</Text>
+                    <Text style={styles.changePhotoText}>Change Photo</Text>
+                  </Pressable>
                 </View>
               ) : (
-                <Text style={styles.selectPlaceholder}>
-                  Select incident category
-                </Text>
+                <ScalePress
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setPhotoPickerOpen(true);
+                  }}
+                >
+                  <View style={styles.photoBox}>
+                    <View style={styles.photoIcon}>
+                      <Ionicons name="camera" size={26} color={colors.primary} />
+                    </View>
+                    <Text style={styles.photoTitle}>Add incident photo</Text>
+                    <Text style={styles.photoHint}>
+                      Take a photo or choose from gallery
+                    </Text>
+                  </View>
+                </ScalePress>
               )}
-              <Ionicons
-                name="chevron-down"
-                size={18}
-                color={colors.textMuted}
+            </FadeInView>
+
+            {/* Category Selector */}
+            <FadeInView delay={200} slideFrom={15}>
+              <Text style={styles.label}>Category</Text>
+              <Pressable
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setPickerOpen(true);
+                }}
+                style={({ pressed }) => [
+                  styles.select,
+                  pressed && { backgroundColor: colors.surface },
+                ]}
+              >
+                {category ? (
+                  <View style={styles.selectedCategory}>
+                    <View style={styles.categoryIconWrap}>
+                      <Ionicons
+                        name={categoryIcons[category] ?? "ellipsis-horizontal-circle"}
+                        size={16}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text style={styles.selectText}>{category}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.selectPlaceholder}>
+                    Select incident category
+                  </Text>
+                )}
+                <Ionicons
+                  name="chevron-down"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </FadeInView>
+
+            {/* Title */}
+            <FadeInView delay={250} slideFrom={15}>
+              <FormInput
+                label="Title"
+                placeholder="Incident title (e.g. Traffic accident on bypass)"
+                value={title}
+                onChangeText={setTitle}
+                returnKeyType="next"
+                onSubmitEditing={() => descriptionRef.current?.focus()}
               />
-            </Pressable>
-          </FadeInView>
+            </FadeInView>
 
-          {/* Title */}
-          <FadeInView delay={250} slideFrom={15}>
-            <FormInput
-              label="Title"
-              placeholder="Incident title (e.g. Traffic accident on bypass)"
-              value={title}
-              onChangeText={setTitle}
-            />
-          </FadeInView>
-
-          {/* Description */}
-          <FadeInView delay={300} slideFrom={15}>
-            <FormInput
-              label="Description"
-              placeholder="Describe what happened..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-            />
-          </FadeInView>
+            {/* Description */}
+            <FadeInView delay={300} slideFrom={15}>
+              <FormInput
+                ref={descriptionRef}
+                label="Description"
+                placeholder="Describe what happened..."
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                blurOnSubmit={false}
+              />
+            </FadeInView>
 
           {/* Location Card */}
           <FadeInView delay={350} slideFrom={15}>
@@ -426,7 +449,8 @@ export default function CreateIncidentScreen() {
               />
             </View>
           </FadeInView>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
       {/* Photo Picker Modal */}

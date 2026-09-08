@@ -5,6 +5,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -135,6 +138,7 @@ export default function IncidentDetailsScreen() {
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
+    Keyboard.dismiss();
     setComments((prev) => [
       ...prev,
       {
@@ -150,6 +154,11 @@ export default function IncidentDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+      >
       {/* ── Top Navigation Bar ── */}
       <View style={styles.navBar}>
         <Pressable
@@ -200,6 +209,8 @@ export default function IncidentDetailsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Author / Reporter Row ── */}
         <View style={styles.reporterRow}>
@@ -408,8 +419,9 @@ export default function IncidentDetailsScreen() {
           )}
         </View>
       </View>
-    </SafeAreaView>
-  );
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({

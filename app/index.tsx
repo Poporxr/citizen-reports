@@ -3,12 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,6 +30,9 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
 
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
@@ -53,6 +59,7 @@ export default function AuthScreen() {
   });
 
   const handleSubmit = async () => {
+    Keyboard.dismiss();
     setErrorMessage("");
     if (!email.trim() || !password) {
       setErrorMessage("Please enter both email and password.");
@@ -79,122 +86,132 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={styles.content}>
-            <Animated.View
-              style={[
-                styles.logoOuter,
-                {
-                  transform: [{ scale: logoScale }, { rotate: spin }],
-                },
-              ]}
-            >
-              <View style={styles.logoInner}>
-                <Ionicons name="megaphone" size={32} color={colors.primaryText} />
-              </View>
-            </Animated.View>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.content}>
+              <Animated.View
+                style={[
+                  styles.logoOuter,
+                  {
+                    transform: [{ scale: logoScale }, { rotate: spin }],
+                  },
+                ]}
+              >
+                <View style={styles.logoInner}>
+                  <Ionicons name="megaphone" size={32} color={colors.primaryText} />
+                </View>
+              </Animated.View>
 
-            <FadeInView delay={200}>
-              <Text style={styles.title}>Citizen Report</Text>
-            </FadeInView>
-            <FadeInView delay={300}>
-              <Text style={styles.subtitle}>
-                {isRegister
-                  ? "Create an account to report incidents and help keep your community safe."
-                  : "Sign in to report incidents and stay informed about what's happening nearby."}
-              </Text>
-            </FadeInView>
+              <FadeInView delay={200}>
+                <Text style={styles.title}>Citizen Report</Text>
+              </FadeInView>
+              <FadeInView delay={300}>
+                <Text style={styles.subtitle}>
+                  {isRegister
+                    ? "Create an account to report incidents and help keep your community safe."
+                    : "Sign in to report incidents and stay informed about what's happening nearby."}
+                </Text>
+              </FadeInView>
 
-            {/* Mode Switcher */}
-            <FadeInView delay={400} style={styles.modeSwitchWrapper}>
-              <View style={styles.modeSwitch}>
-                <Pressable
-                  style={[
-                    styles.modeButton,
-                    !isRegister && styles.modeButtonActive,
-                  ]}
-                  onPress={() => {
-                    setIsRegister(false);
-                    setErrorMessage("");
-                  }}
-                >
-                  <Text
+              {/* Mode Switcher */}
+              <FadeInView delay={400} style={styles.modeSwitchWrapper}>
+                <View style={styles.modeSwitch}>
+                  <Pressable
                     style={[
-                      styles.modeButtonText,
-                      !isRegister && styles.modeButtonTextActive,
+                      styles.modeButton,
+                      !isRegister && styles.modeButtonActive,
                     ]}
+                    onPress={() => {
+                      setIsRegister(false);
+                      setErrorMessage("");
+                    }}
                   >
-                    Sign In
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.modeButton,
-                    isRegister && styles.modeButtonActive,
-                  ]}
-                  onPress={() => {
-                    setIsRegister(true);
-                    setErrorMessage("");
-                  }}
-                >
-                  <Text
+                    <Text
+                      style={[
+                        styles.modeButtonText,
+                        !isRegister && styles.modeButtonTextActive,
+                      ]}
+                    >
+                      Sign In
+                    </Text>
+                  </Pressable>
+                  <Pressable
                     style={[
-                      styles.modeButtonText,
-                      isRegister && styles.modeButtonTextActive,
+                      styles.modeButton,
+                      isRegister && styles.modeButtonActive,
                     ]}
+                    onPress={() => {
+                      setIsRegister(true);
+                      setErrorMessage("");
+                    }}
                   >
-                    Register
-                  </Text>
-                </Pressable>
-              </View>
-            </FadeInView>
+                    <Text
+                      style={[
+                        styles.modeButtonText,
+                        isRegister && styles.modeButtonTextActive,
+                      ]}
+                    >
+                      Register
+                    </Text>
+                  </Pressable>
+                </View>
+              </FadeInView>
 
-            {/* Error Message */}
-            {errorMessage ? (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            ) : null}
+              {/* Error Message */}
+              {errorMessage ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
 
-            {/* Form Fields */}
-            <FadeInView delay={500} style={styles.form}>
-              {isRegister && (
+              {/* Form Fields */}
+              <FadeInView delay={500} style={styles.form}>
+                {isRegister && (
+                  <FormInput
+                    label="Full Name"
+                    placeholder="e.g. Emmanuel Aondohemba"
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                    onSubmitEditing={() => emailInputRef.current?.focus()}
+                  />
+                )}
+
                 <FormInput
-                  label="Full Name"
-                  placeholder="e.g. Emmanuel Aondohemba"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
+                  ref={emailInputRef}
+                  label="Email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordInputRef.current?.focus()}
                 />
-              )}
 
-              <FormInput
-                label="Email"
-                placeholder="name@example.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <FormInput
-                label="Password"
-                placeholder="At least 6 characters"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
+                <FormInput
+                  ref={passwordInputRef}
+                  label="Password"
+                  placeholder="At least 6 characters"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                />
 
               <View style={styles.actionContainer}>
                 <PrimaryButton
@@ -248,7 +265,8 @@ export default function AuthScreen() {
           </FadeInView>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </TouchableWithoutFeedback>
+  </SafeAreaView>
   );
 }
 

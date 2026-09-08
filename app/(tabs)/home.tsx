@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CategoryChip from "../../components/CategoryChip";
 import EmptyState from "../../components/EmptyState";
@@ -19,7 +26,23 @@ export default function HomeScreen() {
   const router = useRouter();
   const [selected, setSelected] = useState<string>("All");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    const unsub = subscribeIncidents(
+      (data) => {
+        setRawIncidents(data);
+        setRefreshing(false);
+      },
+      () => setRefreshing(false)
+    );
+    setTimeout(() => {
+      setRefreshing(false);
+      unsub();
+    }, 800);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -101,6 +124,14 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         {loading ? (
           <View style={styles.feedContainer}>

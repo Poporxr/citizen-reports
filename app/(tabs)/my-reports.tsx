@@ -1,6 +1,13 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
 import FadeInView from "../../components/FadeInView";
@@ -21,7 +28,25 @@ export default function MyReportsScreen() {
   const { user } = useAuth();
   const [segment, setSegment] = useState<(typeof segments)[number]>("All");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [rawReports, setRawReports] = useState<IncidentDoc[]>([]);
+
+  const onRefresh = () => {
+    if (!user) return;
+    setRefreshing(true);
+    const unsub = subscribeMyReports(
+      user.uid,
+      (data) => {
+        setRawReports(data);
+        setRefreshing(false);
+      },
+      () => setRefreshing(false)
+    );
+    setTimeout(() => {
+      setRefreshing(false);
+      unsub();
+    }, 800);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -98,6 +123,14 @@ export default function MyReportsScreen() {
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         {loading ? (
           <View>

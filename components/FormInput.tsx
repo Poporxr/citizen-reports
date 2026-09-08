@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { forwardRef, useState } from "react";
+import {
+  ReturnKeyTypeOptions,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { colors, font, radius, spacing } from "../theme";
 
 type Props = {
@@ -12,25 +18,35 @@ type Props = {
   keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   autoCorrect?: boolean;
+  returnKeyType?: ReturnKeyTypeOptions;
+  onSubmitEditing?: () => void;
+  blurOnSubmit?: boolean;
 };
 
-export default function FormInput({
-  label,
-  placeholder,
-  value,
-  onChangeText,
-  multiline = false,
-  secureTextEntry = false,
-  keyboardType = "default",
-  autoCapitalize = "none",
-  autoCorrect = true,
-}: Props) {
+const FormInput = forwardRef<TextInput, Props>(function FormInput(
+  {
+    label,
+    placeholder,
+    value,
+    onChangeText,
+    multiline = false,
+    secureTextEntry = false,
+    keyboardType = "default",
+    autoCapitalize = "none",
+    autoCorrect = true,
+    returnKeyType,
+    onSubmitEditing,
+    blurOnSubmit,
+  },
+  ref
+) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
+        ref={ref}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         value={value}
@@ -40,6 +56,9 @@ export default function FormInput({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         autoCorrect={autoCorrect}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        blurOnSubmit={blurOnSubmit}
         textAlignVertical={multiline ? "top" : "center"}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -51,7 +70,9 @@ export default function FormInput({
       />
     </View>
   );
-}
+});
+
+export default FormInput;
 
 const styles = StyleSheet.create({
   wrapper: {
