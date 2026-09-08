@@ -9,7 +9,17 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAAUctNyJMiBvP84CgE1M3rlyhsZw5Z300",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "community-report-75303.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "community-report-75303",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "community-report-75303.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "770310763775",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:770310763775:web:bf149ed73478d8254908ca",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "mys5cfdi",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "citizen_reports"
+      }
     },
     "production": {
       "autoIncrement": true

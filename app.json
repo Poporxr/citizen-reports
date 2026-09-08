@@ -4,6 +4,7 @@
     "slug": "citizen-report",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
     "scheme": "citizenreport",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -18,6 +19,7 @@
     "android": {
       "package": "com.citizenreport.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
@@ -29,6 +31,15 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#EFF6FF"
+        }
+      ],
       [
         "expo-image-picker",
         {
