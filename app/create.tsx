@@ -150,6 +150,16 @@ export default function CreateIncidentScreen() {
   const handlePickFromLibrary = async () => {
     setPhotoPickerOpen(false);
     try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Permission to access your photo library is required. Please enable it in your device settings."
+        );
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,

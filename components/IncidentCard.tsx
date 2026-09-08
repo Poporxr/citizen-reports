@@ -9,6 +9,7 @@ type Props = {
   onPress?: () => void;
   index?: number;
   likesCount?: number;
+  commentsCount?: number;
   userHasLiked?: boolean;
   onLike?: () => void;
   onShare?: () => void;
@@ -27,6 +28,7 @@ export default function IncidentCard({
   incident,
   onPress,
   likesCount = 0,
+  commentsCount = 0,
   userHasLiked = false,
   onLike,
   onShare,
@@ -152,7 +154,7 @@ export default function IncidentCard({
               size={17}
               color={colors.textMuted}
             />
-            <Text style={styles.actionCount}>0</Text>
+            <Text style={styles.actionCount}>{commentsCount}</Text>
           </Pressable>
 
           <Pressable

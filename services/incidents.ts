@@ -26,6 +26,8 @@ export interface IncidentDoc {
   userId: string;
   userName: string;
   createdAt: any;
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 export function docToIncident(doc: IncidentDoc): Incident {
@@ -243,6 +245,8 @@ export function subscribeIncidents(
           userId: data.userId || "",
           userName: data.userName || "Anonymous",
           createdAt: data.createdAt,
+          likesCount: typeof data.likesCount === "number" ? data.likesCount : 0,
+          commentsCount: typeof data.commentsCount === "number" ? data.commentsCount : 0,
         });
       });
       setCachedItem("feed_incidents", list);
@@ -298,6 +302,8 @@ export function subscribeMyReports(
           userId: data.userId || "",
           userName: data.userName || "Anonymous",
           createdAt: data.createdAt,
+          likesCount: typeof data.likesCount === "number" ? data.likesCount : 0,
+          commentsCount: typeof data.commentsCount === "number" ? data.commentsCount : 0,
         });
       });
 
@@ -343,6 +349,8 @@ export async function getIncidentById(id: string): Promise<IncidentDoc | null> {
       userId: data.userId || "",
       userName: data.userName || "Anonymous",
       createdAt: data.createdAt,
+      likesCount: typeof data.likesCount === "number" ? data.likesCount : 0,
+      commentsCount: typeof data.commentsCount === "number" ? data.commentsCount : 0,
     };
     setCachedItem(`incident_${id}`, item);
     return item;

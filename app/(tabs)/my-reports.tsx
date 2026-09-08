@@ -164,12 +164,14 @@ export default function MyReportsScreen() {
               count: 0,
               userLiked: false,
             };
+            const rawDoc = rawReports.find((r) => r.id === incident.id);
             return (
               <IncidentCard
                 key={incident.id}
                 incident={incident}
                 index={index}
                 likesCount={likeInfo.count}
+                commentsCount={rawDoc?.commentsCount ?? 0}
                 userHasLiked={likeInfo.userLiked}
                 onLike={() => handleToggleLike(incident.id)}
                 onShare={() => setShareIncident(incident)}
