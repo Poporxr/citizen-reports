@@ -150,12 +150,6 @@ export default function CreateIncidentScreen() {
   const handlePickFromLibrary = async () => {
     setPhotoPickerOpen(false);
     try {
-      // On modern iOS and Android, launchImageLibraryAsync invokes the system photo picker
-      const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!permission.granted && permission.canAskAgain) {
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,

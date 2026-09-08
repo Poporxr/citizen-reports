@@ -6,6 +6,11 @@ const {
   setDoc,
   Timestamp,
 } = require("firebase/firestore");
+const {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} = require("firebase/auth");
 const fs = require("fs");
 const path = require("path");
 
@@ -35,6 +40,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const now = Date.now();
 const minute = 60 * 1000;
@@ -326,26 +332,204 @@ const seedIncidents = [
   },
 ];
 
+const sampleLikers = [
+  "seed-user-1",
+  "seed-user-2",
+  "seed-user-3",
+  "seed-user-4",
+  "seed-user-5",
+  "seed-user-6",
+  "seed-user-7",
+  "seed-user-8",
+  "seed-user-9",
+  "seed-user-10",
+  "seed-user-11",
+  "seed-user-12",
+];
+
+const categoryComments = {
+  Accident: [
+    {
+      author: "Officer B. Adamu",
+      avatar: "BA",
+      text: "FRSC patrol team is on site directing traffic. Right lane now passable.",
+      offsetMs: 5 * minute,
+    },
+    {
+      author: "David K.",
+      avatar: "DK",
+      text: "Thanks for the swift update. Taking the ring road bypass instead.",
+      offsetMs: 25 * minute,
+    },
+    {
+      author: "Grace Terkura",
+      avatar: "GT",
+      text: "Ambulance team just transported the affected persons to FMC. Prayers with them.",
+      offsetMs: 50 * minute,
+    },
+  ],
+  Fighting: [
+    {
+      author: "Chief S. Orkar",
+      avatar: "SO",
+      text: "Community vigilante group and transport leaders have de-escalated the dispute.",
+      offsetMs: 10 * minute,
+    },
+    {
+      author: "Moses A.",
+      avatar: "MA",
+      text: "Calm restored in the park. Movement is normal again.",
+      offsetMs: 40 * minute,
+    },
+  ],
+  Rioting: [
+    {
+      author: "Police PRO Zone 4",
+      avatar: "PR",
+      text: "Joint patrol team stationed along the major corridors. Citizens should remain calm.",
+      offsetMs: 15 * minute,
+    },
+    {
+      author: "Samuel I.",
+      avatar: "SI",
+      text: "Buses are diverting through the expressway. Avoid the main roundabout for now.",
+      offsetMs: 45 * minute,
+    },
+    {
+      author: "Vera Tor",
+      avatar: "VT",
+      text: "Situation is now under control as of 20 minutes ago.",
+      offsetMs: 70 * minute,
+    },
+  ],
+  Fire: [
+    {
+      author: "Fire Marshal Dan",
+      avatar: "MD",
+      text: "Two fire engines from State Fire Service deployed. Hydrants active.",
+      offsetMs: 12 * minute,
+    },
+    {
+      author: "Patience U.",
+      avatar: "PU",
+      text: "Nearby shops have cut power and evacuated goods safely. No casualties reported.",
+      offsetMs: 30 * minute,
+    },
+  ],
+  Theft: [
+    {
+      author: "Inspector J. Iorbee",
+      avatar: "JI",
+      text: "Case logged at the central division. Night patrols doubled in this quadrant.",
+      offsetMs: 20 * minute,
+    },
+    {
+      author: "Kelechi N.",
+      avatar: "KN",
+      text: "Residents please double lock outer gates and keep security lighting on.",
+      offsetMs: 60 * minute,
+    },
+  ],
+  Other: [
+    {
+      author: "Engr. Felix O.",
+      avatar: "FO",
+      text: "Maintenance crew dispatched with drainage pumps. Work ongoing.",
+      offsetMs: 15 * minute,
+    },
+    {
+      author: "Mercy A.",
+      avatar: "MA",
+      text: "Water level receding gradually. Pedestrians can use the elevated walkway.",
+      offsetMs: 45 * minute,
+    },
+  ],
+};
+
 async function seed() {
   console.log("--------------------------------------------------");
-  console.log("Seeding Firestore incidents collection...");
+  console.log("Seeding Firestore incidents with real likes & comments...");
   console.log("Project ID:", firebaseConfig.projectId);
-  console.log(`Adding ${seedIncidents.length} rich incident reports (3 per category)...`);
+  console.log(
+    `Adding ${seedIncidents.length} rich incident reports with subcollections...`
+  );
   console.log("--------------------------------------------------");
 
+  try {
+    await signInWithEmailAndPassword(
+      auth,
+      "seed.admin@citizenreports.org",
+      "SeedPassword123!"
+    );
+    console.log("✓ Authenticated as seed admin.");
+  } catch (err) {
+    try {
+      await createUserWithEmailAndPassword(
+        auth,
+        "seed.admin@citizenreports.org",
+        "SeedPassword123!"
+      );
+      console.log("✓ Created and authenticated seed admin.");
+    } catch (createErr) {
+      console.log("ℹ Note on auth:", createErr.message);
+    }
+  }
+
   let successCount = 0;
-  for (const item of seedIncidents) {
+  for (let i = 0; i < seedIncidents.length; i++) {
+    const item = seedIncidents[i];
     const { offsetMs, ...docData } = item;
     const docDate = new Date(now - offsetMs);
     const docRef = doc(collection(db, "incidents"), item.id);
 
+    // Pick 3 to 6 likers
+    const numLikes = (i % 4) + 3;
+    const itemLikers = sampleLikers.slice(0, numLikes);
+
+    // Pick comments for this category
+    const pool = categoryComments[item.category] || categoryComments.Other;
+    const itemComments = pool.slice(0, (i % pool.length) + 1);
+
     try {
+      const currentUid = auth.currentUser ? auth.currentUser.uid : item.userId;
+      // 1. Create main incident document
       await setDoc(docRef, {
         ...docData,
+        userId: currentUid,
         createdAt: Timestamp.fromDate(docDate),
+        likesCount: itemLikers.length,
+        commentsCount: itemComments.length,
       });
+
+      // 2. Seed likes subcollection: incidents/{id}/likes/{userId}
+      for (const likerId of itemLikers) {
+        const likeRef = doc(db, "incidents", item.id, "likes", likerId);
+        await setDoc(likeRef, {
+          userId: likerId,
+          createdAt: Timestamp.fromDate(new Date(now - (offsetMs + 2 * minute))),
+        });
+      }
+
+      // 3. Seed comments subcollection: incidents/{id}/comments/{commentId}
+      for (let cIdx = 0; cIdx < itemComments.length; cIdx++) {
+        const c = itemComments[cIdx];
+        const commentId = `c_${item.id}_${cIdx + 1}`;
+        const commentRef = doc(db, "incidents", item.id, "comments", commentId);
+        const commentDate = new Date(docDate.getTime() + c.offsetMs);
+        await setDoc(commentRef, {
+          id: commentId,
+          author: c.author,
+          avatar: c.avatar,
+          text: c.text,
+          createdAt: Timestamp.fromDate(commentDate),
+          userId: currentUid,
+        });
+      }
+
       successCount++;
-      console.log(`✓ [${docData.category.padEnd(8)}] ${docData.title}`);
+      console.log(
+        `✓ [${docData.category.padEnd(8)}] ${docData.title} (${itemLikers.length} likes, ${itemComments.length} comments)`
+      );
     } catch (err) {
       console.error(`✗ Error adding ${item.id}:`, err.message);
       if (
@@ -354,7 +538,7 @@ async function seed() {
       ) {
         console.log(
           "\n⚠️  FIRESTORE SECURITY RULES BLOCKED WRITING." +
-            "\nPlease publish the rules from firestore.rules in Firebase Console, then run 'npm run seed' again."
+            "\nPlease ensure your Firestore security rules allow writing."
         );
         process.exit(1);
       }
@@ -363,9 +547,9 @@ async function seed() {
 
   console.log("--------------------------------------------------");
   console.log(
-    `Seeding complete! Successfully seeded ${successCount} of ${seedIncidents.length} incidents.`
+    `Seeding complete! Successfully seeded ${successCount} of ${seedIncidents.length} incidents with real likes & comments.`
   );
-  console.log("All 6 categories now have at least 3 rich community reports.");
+  console.log("All incidents now have live subcollections and counts in Firestore.");
   console.log("--------------------------------------------------");
   process.exit(0);
 }

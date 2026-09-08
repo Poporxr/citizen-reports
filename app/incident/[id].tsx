@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Keyboard,
@@ -17,8 +17,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
+import ShareModal from "../../components/ShareModal";
+import { DetailSkeleton } from "../../components/Skeleton";
+import { useAuth } from "../../contexts/AuthContext";
 import type { Incident } from "../../data/incidents";
+import {
+  CommentDoc,
+  addComment,
+  subscribeComments,
+} from "../../services/comments";
 import { docToIncident, getIncidentById } from "../../services/incidents";
+import { subscribeLikes, toggleLike } from "../../services/likes";
 import { colors, font, radius, spacing } from "../../theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -32,28 +41,18 @@ const categoryTheme: Record<string, { bg: string; text: string; icon: keyof type
   Other: { bg: "#F3F4F6", text: "#4B5563", icon: "alert-circle-outline" },
 };
 
-const mockComments = [
-  {
-    id: "c1",
-    author: "Mary Jane",
-    avatar: "MJ",
-    text: "Emergency team arrived at the scene. Traffic is moving slowly.",
-    time: "8 mins ago",
-  },
-  {
-    id: "c2",
-    author: "David K.",
-    avatar: "DK",
-    text: "Thanks for the update. Motorists should take the bypass road.",
-    time: "15 mins ago",
-  },
-];
-
 export default function IncidentDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user, userProfile } = useAuth();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [comments, setComments] = useState<CommentDoc[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,17 +83,100 @@ export default function IncidentDetailsScreen() {
     };
   }, [id]);
 
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [likesCount, setLikesCount] = useState(24);
-  const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState(mockComments);
+  useEffect(() => {
+    if (!id) return;
+    const unsubLikes = subscribeLikes(
+      String(id),
+      user?.uid,
+      (count, userLiked) => {
+        setLikesCount(count);
+        setIsLiked(userLiked);
+      }
+    );
+    const unsubComments = subscribeComments(
+      String(id),
+      (data) => {
+        setComments(data);
+      }
+    );
+    return () => {
+      unsubLikes();
+      unsubComments();
+    };
+  }, [id, user?.uid]);
+
+  const handleToggleLike = async () => {
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to upvote reports.");
+      return;
+    }
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+    try {
+      await toggleLike(String(id), user.uid);
+    } catch (err) {
+      console.warn("Failed to toggle like:", err);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || isSubmittingComment) return;
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to post updates.");
+      return;
+    }
+    const text = newComment.trim();
+    setNewComment("");
+    Keyboard.dismiss();
+    setIsSubmittingComment(true);
+
+    const authorName =
+      user.displayName || userProfile?.name || "Community Member";
+    const authorInitials =
+      authorName
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "CM";
+
+    try {
+      await addComment(String(id), {
+        author: authorName,
+        avatar: authorInitials,
+        text,
+        userId: user.uid,
+      });
+    } catch (err) {
+      console.warn("Failed to post comment:", err);
+      Alert.alert("Error", "Could not submit your update. Please try again.");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safe, styles.center]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <View style={styles.navBar}>
+          <Pressable
+            style={styles.navButton}
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Incident Report
+          </Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <DetailSkeleton />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -126,32 +208,6 @@ export default function IncidentDetailsScreen() {
     .slice(0, 2)
     .toUpperCase();
 
-  const handleToggleLike = () => {
-    if (isLiked) {
-      setLikesCount((prev) => prev - 1);
-      setIsLiked(false);
-    } else {
-      setLikesCount((prev) => prev + 1);
-      setIsLiked(true);
-    }
-  };
-
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    Keyboard.dismiss();
-    setComments((prev) => [
-      ...prev,
-      {
-        id: `c_${Date.now()}`,
-        author: "You",
-        avatar: "ME",
-        text: newComment.trim(),
-        time: "Just now",
-      },
-    ]);
-    setNewComment("");
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
@@ -159,52 +215,36 @@ export default function IncidentDetailsScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
       >
-      {/* ── Top Navigation Bar ── */}
-      <View style={styles.navBar}>
-        <Pressable
-          style={styles.navButton}
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </Pressable>
-
-        <Text style={styles.navTitle} numberOfLines={1}>
-          Incident Report
-        </Text>
-
-        <View style={styles.navRightActions}>
+        {/* ── Top Navigation Bar ── */}
+        <View style={styles.navBar}>
           <Pressable
             style={styles.navButton}
-            onPress={() => setIsBookmarked((b) => !b)}
+            onPress={() => router.back()}
             hitSlop={8}
-            accessibilityLabel="Bookmark incident"
+            accessibilityLabel="Go back"
           >
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={20}
-              color={isBookmarked ? colors.primary : colors.text}
-            />
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
 
-          <Pressable
-            style={styles.navButton}
-            hitSlop={8}
-            accessibilityLabel="Share incident"
-          >
-            <Ionicons name="paper-plane-outline" size={20} color={colors.text} />
-          </Pressable>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            Incident Report
+          </Text>
 
-          <Pressable
-            style={styles.navButton}
-            hitSlop={8}
-            accessibilityLabel="More options"
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-          </Pressable>
+          <View style={styles.navRightActions}>
+            <Pressable
+              style={styles.navButton}
+              onPress={() => setShareModalVisible(true)}
+              hitSlop={8}
+              accessibilityLabel="Share incident"
+            >
+              <Ionicons
+                name="share-social-outline"
+                size={20}
+                color={colors.text}
+              />
+            </Pressable>
+          </View>
         </View>
-      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -229,23 +269,6 @@ export default function IncidentDetailsScreen() {
               {incident.time}
             </Text>
           </View>
-
-          <Pressable
-            style={[
-              styles.followBtn,
-              isFollowing && styles.followingBtn,
-            ]}
-            onPress={() => setIsFollowing((f) => !f)}
-          >
-            <Text
-              style={[
-                styles.followBtnText,
-                isFollowing && styles.followingBtnText,
-              ]}
-            >
-              {isFollowing ? "Following" : "Follow"}
-            </Text>
-          </Pressable>
         </View>
 
         {/* ── Report Title ── */}
@@ -336,33 +359,15 @@ export default function IncidentDetailsScreen() {
             <Text style={styles.engagementText}>{comments.length}</Text>
           </View>
 
-          <View style={styles.engagementBtn}>
-            <Ionicons name="eye-outline" size={19} color={colors.textSecondary} />
-            <Text style={styles.engagementText}>542</Text>
-          </View>
-
-          <View style={{ flex: 1 }} />
-
           <Pressable
-            hitSlop={6}
-            onPress={handleToggleLike}
             style={styles.engagementBtn}
-          >
-            <Ionicons
-              name={isLiked ? "heart" : "heart-outline"}
-              size={20}
-              color={isLiked ? colors.danger : colors.textSecondary}
-            />
-          </Pressable>
-
-          <Pressable
+            onPress={() => setShareModalVisible(true)}
             hitSlop={6}
-            onPress={() => setIsBookmarked((b) => !b)}
           >
             <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={20}
-              color={isBookmarked ? colors.primary : colors.textSecondary}
+              name="share-social-outline"
+              size={19}
+              color={colors.textSecondary}
             />
           </Pressable>
         </View>
@@ -420,6 +425,12 @@ export default function IncidentDetailsScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
+
+    <ShareModal
+      visible={shareModalVisible}
+      incident={incident}
+      onClose={() => setShareModalVisible(false)}
+    />
   </SafeAreaView>
 );
 }

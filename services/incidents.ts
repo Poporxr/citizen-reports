@@ -12,6 +12,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Category, Incident } from "../data/incidents";
 import { db, isFirebaseConfigured, storage } from "../lib/firebase";
+import { getCachedItem, setCachedItem } from "./cache";
 
 export interface IncidentDoc {
   id: string;
@@ -212,6 +213,13 @@ export function subscribeIncidents(
     return () => {};
   }
 
+  // Instant local cache read
+  getCachedItem<IncidentDoc[]>("feed_incidents").then((cached) => {
+    if (cached && cached.length > 0) {
+      onData(cached);
+    }
+  });
+
   const q = query(
     collection(db, "incidents"),
     orderBy("createdAt", "desc")
@@ -237,6 +245,7 @@ export function subscribeIncidents(
           createdAt: data.createdAt,
         });
       });
+      setCachedItem("feed_incidents", list);
       onData(list);
     },
     (error) => {
@@ -258,6 +267,13 @@ export function subscribeMyReports(
     onData([]);
     return () => {};
   }
+
+  // Instant local cache read
+  getCachedItem<IncidentDoc[]>(`my_reports_${userId}`).then((cached) => {
+    if (cached && cached.length > 0) {
+      onData(cached);
+    }
+  });
 
   const q = query(
     collection(db, "incidents"),
@@ -292,6 +308,7 @@ export function subscribeMyReports(
         return timeB - timeA;
       });
 
+      setCachedItem(`my_reports_${userId}`, list);
       onData(list);
     },
     (error) => {
@@ -302,15 +319,19 @@ export function subscribeMyReports(
 }
 
 /**
- * Fetch a single incident by ID
+ * Fetch a single incident by ID with caching
  */
 export async function getIncidentById(id: string): Promise<IncidentDoc | null> {
   if (!isFirebaseConfigured || !id) return null;
+  const cached = await getCachedItem<IncidentDoc>(`incident_${id}`);
+  if (cached) {
+    return cached;
+  }
   try {
     const docSnap = await getDoc(doc(db, "incidents", id));
     if (!docSnap.exists()) return null;
     const data = docSnap.data();
-    return {
+    const item: IncidentDoc = {
       id: docSnap.id,
       title: data.title || "",
       description: data.description || "",
@@ -323,6 +344,8 @@ export async function getIncidentById(id: string): Promise<IncidentDoc | null> {
       userName: data.userName || "Anonymous",
       createdAt: data.createdAt,
     };
+    setCachedItem(`incident_${id}`, item);
+    return item;
   } catch (err) {
     console.error("Error fetching incident by ID:", err);
     return null;

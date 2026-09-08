@@ -8,6 +8,10 @@ type Props = {
   incident: Incident;
   onPress?: () => void;
   index?: number;
+  likesCount?: number;
+  userHasLiked?: boolean;
+  onLike?: () => void;
+  onShare?: () => void;
 };
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -19,14 +23,14 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   Other: { bg: "#F3F4F6", text: "#4B5563" },
 };
 
-export default function IncidentCard({ incident, onPress }: Props) {
-  const [upvotes, setUpvotes] = useState(
-    Math.floor((Number(incident.id) * 17 + 8) % 45) + 5
-  );
-  const [hasUpvoted, setHasUpvoted] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-
-  const commentsCount = Math.floor((Number(incident.id) * 7 + 3) % 20) + 2;
+export default function IncidentCard({
+  incident,
+  onPress,
+  likesCount = 0,
+  userHasLiked = false,
+  onLike,
+  onShare,
+}: Props) {
   const catTheme = categoryColors[incident.category] ?? {
     bg: colors.surface,
     text: colors.textSecondary,
@@ -38,16 +42,6 @@ export default function IncidentCard({ incident, onPress }: Props) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-
-  const handleUpvote = () => {
-    if (hasUpvoted) {
-      setUpvotes((v) => v - 1);
-      setHasUpvoted(false);
-    } else {
-      setUpvotes((v) => v + 1);
-      setHasUpvoted(true);
-    }
-  };
 
   return (
     <Pressable
@@ -69,7 +63,7 @@ export default function IncidentCard({ incident, onPress }: Props) {
 
       {/* ── Right Column: Content ── */}
       <View style={styles.contentColumn}>
-        {/* Author Header — name · time · menu */}
+        {/* Author Header — name · time */}
         <View style={styles.headerRow}>
           <View style={styles.nameMetaWrap}>
             <Text style={styles.reporterName} numberOfLines={1}>
@@ -78,9 +72,6 @@ export default function IncidentCard({ incident, onPress }: Props) {
             <Text style={styles.dot}>·</Text>
             <Text style={styles.timeText}>{incident.time}</Text>
           </View>
-          <Pressable hitSlop={8} style={styles.menuButton}>
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
-          </Pressable>
         </View>
 
         {/* Location + Category pills row under the author name */}
@@ -126,51 +117,56 @@ export default function IncidentCard({ incident, onPress }: Props) {
         {/* Engagement Row */}
         <View style={styles.actionRow}>
           <Pressable
-            hitSlop={6}
+            hitSlop={8}
             style={styles.actionBtn}
-            onPress={handleUpvote}
+            onPress={(e) => {
+              e.stopPropagation();
+              onLike?.();
+            }}
           >
             <Ionicons
-              name={hasUpvoted ? "heart" : "heart-outline"}
+              name={userHasLiked ? "heart" : "heart-outline"}
               size={18}
-              color={hasUpvoted ? colors.danger : colors.textMuted}
+              color={userHasLiked ? colors.danger : colors.textMuted}
             />
             <Text
               style={[
                 styles.actionCount,
-                hasUpvoted && { color: colors.danger },
+                userHasLiked && { color: colors.danger },
               ]}
             >
-              {upvotes}
+              {likesCount}
             </Text>
           </Pressable>
 
-          <Pressable hitSlop={6} style={styles.actionBtn} onPress={onPress}>
+          <Pressable
+            hitSlop={8}
+            style={styles.actionBtn}
+            onPress={(e) => {
+              e.stopPropagation();
+              onPress?.();
+            }}
+          >
             <Ionicons
               name="chatbubble-outline"
               size={17}
               color={colors.textMuted}
             />
-            <Text style={styles.actionCount}>{commentsCount}</Text>
+            <Text style={styles.actionCount}>0</Text>
           </Pressable>
 
-          <Pressable hitSlop={6} style={styles.actionBtn}>
+          <Pressable
+            hitSlop={8}
+            style={styles.actionBtn}
+            onPress={(e) => {
+              e.stopPropagation();
+              onShare?.();
+            }}
+          >
             <Ionicons
               name="share-social-outline"
               size={17}
               color={colors.textMuted}
-            />
-          </Pressable>
-
-          <Pressable
-            hitSlop={6}
-            style={styles.actionBtn}
-            onPress={() => setBookmarked((b) => !b)}
-          >
-            <Ionicons
-              name={bookmarked ? "bookmark" : "bookmark-outline"}
-              size={18}
-              color={bookmarked ? colors.primary : colors.textMuted}
             />
           </Pressable>
         </View>
@@ -257,9 +253,6 @@ const styles = StyleSheet.create({
     fontSize: font.tiny,
     color: colors.textMuted,
     fontWeight: "400",
-  },
-  menuButton: {
-    padding: 2,
   },
 
   /* ── Pills row: location + category ── */

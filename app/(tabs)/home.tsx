@@ -13,21 +13,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import CategoryChip from "../../components/CategoryChip";
 import EmptyState from "../../components/EmptyState";
 import IncidentCard from "../../components/IncidentCard";
+import ShareModal from "../../components/ShareModal";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
-import { filterCategories } from "../../data/incidents";
+import { useAuth } from "../../contexts/AuthContext";
+import { filterCategories, Incident } from "../../data/incidents";
 import {
   docToIncident,
   IncidentDoc,
   subscribeIncidents,
 } from "../../services/incidents";
+import { useIncidentLikes } from "../../services/likes";
 import { colors, font, radius, spacing } from "../../theme";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string>("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
+  const [shareIncident, setShareIncident] = useState<Incident | null>(null);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -69,6 +74,12 @@ export default function HomeScreen() {
     return incidents.filter((incident) => incident.category === selected);
   }, [selected, incidents]);
 
+  const visibleIncidentIds = useMemo(() => visible.map((i) => i.id), [visible]);
+  const { likesMap, handleToggleLike } = useIncidentLikes(
+    visibleIncidentIds,
+    user?.uid
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       {/* ── Compact Header ── */}
@@ -87,16 +98,6 @@ export default function HomeScreen() {
             accessibilityLabel="Report Incident"
           >
             <Ionicons name="camera-outline" size={21} color={colors.text} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.iconBtn,
-              pressed && { backgroundColor: colors.surface },
-            ]}
-            accessibilityLabel="Notifications"
-          >
-            <Ionicons name="notifications-outline" size={20} color={colors.text} />
-            <View style={styles.notifBadge} />
           </Pressable>
         </View>
       </View>
@@ -153,17 +154,33 @@ export default function HomeScreen() {
           />
         ) : (
           <View style={styles.feedContainer}>
-            {visible.map((incident, index) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                index={index}
-                onPress={() => router.push(`/incident/${incident.id}`)}
-              />
-            ))}
+            {visible.map((incident, index) => {
+              const likeInfo = likesMap[incident.id] || {
+                count: 0,
+                userLiked: false,
+              };
+              return (
+                <IncidentCard
+                  key={incident.id}
+                  incident={incident}
+                  index={index}
+                  likesCount={likeInfo.count}
+                  userHasLiked={likeInfo.userLiked}
+                  onLike={() => handleToggleLike(incident.id)}
+                  onShare={() => setShareIncident(incident)}
+                  onPress={() => router.push(`/incident/${incident.id}`)}
+                />
+              );
+            })}
           </View>
         )}
       </ScrollView>
+
+      <ShareModal
+        visible={!!shareIncident}
+        incident={shareIncident}
+        onClose={() => setShareIncident(null)}
+      />
     </SafeAreaView>
   );
 }

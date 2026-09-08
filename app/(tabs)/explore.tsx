@@ -16,23 +16,28 @@ import CategoryChip from "../../components/CategoryChip";
 import EmptyState from "../../components/EmptyState";
 import FadeInView from "../../components/FadeInView";
 import IncidentCard from "../../components/IncidentCard";
+import ShareModal from "../../components/ShareModal";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
-import { filterCategories } from "../../data/incidents";
+import { useAuth } from "../../contexts/AuthContext";
+import { filterCategories, Incident } from "../../data/incidents";
 import {
   docToIncident,
   IncidentDoc,
   subscribeIncidents,
 } from "../../services/incidents";
+import { useIncidentLikes } from "../../services/likes";
 import { colors, font, radius, spacing } from "../../theme";
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string>("All");
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
+  const [shareIncident, setShareIncident] = useState<Incident | null>(null);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -77,6 +82,12 @@ export default function ExploreScreen() {
     });
   }, [incidents, selected, query]);
 
+  const visibleIncidentIds = useMemo(() => visible.map((i) => i.id), [visible]);
+  const { likesMap, handleToggleLike } = useIncidentLikes(
+    visibleIncidentIds,
+    user?.uid
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <FadeInView delay={0} slideFrom={0} duration={400}>
@@ -102,40 +113,34 @@ export default function ExploreScreen() {
               color={searchFocused ? colors.primary : colors.textMuted}
             />
             <TextInput
-              placeholder="Search by title, location..."
+              style={styles.input}
+              placeholder="Search by title, location, category..."
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               returnKeyType="search"
-              onSubmitEditing={Keyboard.dismiss}
-              style={styles.input}
+              clearButtonMode="while-editing"
             />
             {query.length > 0 && (
               <Pressable
-                onPress={() => {
-                  setQuery("");
-                  Keyboard.dismiss();
-                }}
+                onPress={() => setQuery("")}
+                hitSlop={8}
+                style={styles.clearBtn}
               >
-                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                <Ionicons
+                  name="close-circle"
+                  size={16}
+                  color={colors.textMuted}
+                />
               </Pressable>
             )}
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.filterButton,
-              pressed && { backgroundColor: colors.surface },
-            ]}
-            accessibilityLabel="Filters"
-          >
-            <Ionicons name="options" size={20} color={colors.text} />
-          </Pressable>
         </View>
       </FadeInView>
 
-      <FadeInView delay={200} slideFrom={8}>
+      <FadeInView delay={150} slideFrom={10}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -188,17 +193,33 @@ export default function ExploreScreen() {
             <Text style={styles.resultCount}>
               {visible.length} result{visible.length !== 1 ? "s" : ""}
             </Text>
-            {visible.map((incident, index) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                index={index}
-                onPress={() => router.push(`/incident/${incident.id}`)}
-              />
-            ))}
+            {visible.map((incident, index) => {
+              const likeInfo = likesMap[incident.id] || {
+                count: 0,
+                userLiked: false,
+              };
+              return (
+                <IncidentCard
+                  key={incident.id}
+                  incident={incident}
+                  index={index}
+                  likesCount={likeInfo.count}
+                  userHasLiked={likeInfo.userLiked}
+                  onLike={() => handleToggleLike(incident.id)}
+                  onShare={() => setShareIncident(incident)}
+                  onPress={() => router.push(`/incident/${incident.id}`)}
+                />
+              );
+            })}
           </>
         )}
       </ScrollView>
+
+      <ShareModal
+        visible={!!shareIncident}
+        incident={shareIncident}
+        onClose={() => setShareIncident(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -252,6 +273,9 @@ const styles = StyleSheet.create({
     fontSize: font.body,
     color: colors.text,
     padding: 0,
+  },
+  clearBtn: {
+    padding: 4,
   },
   filterButton: {
     width: 44,

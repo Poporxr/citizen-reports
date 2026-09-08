@@ -70,17 +70,6 @@ export default function ProfileScreen() {
     .slice(0, 2)
     .toUpperCase() || "CR";
 
-  const stats: StatItem[] = [
-    {
-      label: "Reports",
-      value: String(reportsCount),
-      icon: "document-text",
-      color: colors.primary,
-    },
-    { label: "Upvotes", value: "87", icon: "heart", color: colors.danger },
-    { label: "Following", value: "34", icon: "people", color: colors.success },
-  ];
-
   const menu: MenuItem[] = [
     {
       label: "My Reports",
@@ -89,22 +78,6 @@ export default function ProfileScreen() {
       color: colors.primary,
       bgColor: colors.primaryLight,
       onPress: () => router.push("/(tabs)/my-reports"),
-    },
-    {
-      label: "Notifications",
-      subtitle: "Manage your alert preferences",
-      icon: "notifications",
-      color: colors.accent,
-      bgColor: colors.accentLight,
-      onPress: () => {},
-    },
-    {
-      label: "About",
-      subtitle: "Learn more about the app",
-      icon: "information-circle",
-      color: colors.success,
-      bgColor: colors.successLight,
-      onPress: () => {},
     },
   ];
 
@@ -126,20 +99,6 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.scroll}>
           <ProfileCardSkeleton />
-          {/* Menu skeleton */}
-          <View style={styles.menuSkeleton}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={styles.menuSkeletonItem}>
-                <Skeleton width={36} height={36} borderRadius={radius.md} />
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Skeleton width={100} height={14} />
-                  <Skeleton width={160} height={10} />
-                </View>
-                <Skeleton width={18} height={18} borderRadius={9} />
-              </View>
-            ))}
-          </View>
-          {/* Logout skeleton */}
           <Skeleton
             width="100%"
             height={50}
@@ -156,9 +115,6 @@ export default function ProfileScreen() {
       <FadeInView delay={0} slideFrom={0} duration={400}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
-          <Pressable style={styles.settingsBtn} hitSlop={8}>
-            <Ionicons name="settings-outline" size={22} color={colors.text} />
-          </Pressable>
         </View>
       </FadeInView>
 
@@ -176,9 +132,18 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.onlineDot} />
               </View>
-              <Pressable style={styles.editButton}>
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
-              </Pressable>
+              <View style={styles.badgeContainer}>
+                <View style={styles.badge}>
+                  <Ionicons
+                    name="document-text"
+                    size={13}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.badgeText}>
+                    {reportsCount} {reportsCount === 1 ? "Report" : "Reports"}
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.userInfo}>
@@ -189,33 +154,15 @@ export default function ProfileScreen() {
                 {displayEmail}
               </Text>
             </View>
-
-            {/* Stats row */}
-            <View style={styles.statsRow}>
-              {stats.map((stat) => (
-                <View key={stat.label} style={styles.statItem}>
-                  <Text style={styles.statValue}>{stat.value}</Text>
-                  <View style={styles.statLabelRow}>
-                    <Ionicons name={stat.icon} size={12} color={stat.color} />
-                    <Text style={styles.statLabel}>{stat.label}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </View>
         </FadeInView>
 
         {/* ── Menu ── */}
         <FadeInView delay={200} slideFrom={15}>
           <View style={styles.menu}>
-            {menu.map((item, index) => (
+            {menu.map((item) => (
               <ScalePress key={item.label} onPress={item.onPress}>
-                <View
-                  style={[
-                    styles.menuItem,
-                    index < menu.length - 1 && styles.menuItemBorder,
-                  ]}
-                >
+                <View style={styles.menuItem}>
                   <View style={[styles.menuIcon, { backgroundColor: item.bgColor }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
@@ -337,13 +284,22 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: colors.surfaceElevated,
   },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryGhost,
-    alignItems: "center",
+  badgeContainer: {
     justifyContent: "center",
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  badgeText: {
+    fontSize: font.small - 1,
+    fontWeight: "700",
+    color: colors.primary,
   },
   userInfo: {
     marginTop: spacing.md,
@@ -356,35 +312,6 @@ const styles = StyleSheet.create({
   email: {
     marginTop: 2,
     fontSize: font.small,
-    color: colors.textMuted,
-  },
-
-  /* ── Stats ── */
-  statsRow: {
-    flexDirection: "row",
-    marginTop: spacing.lg,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderLight,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: font.h3,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  statLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    marginTop: 2,
-  },
-  statLabel: {
-    fontSize: font.tiny,
-    fontWeight: "600",
     color: colors.textMuted,
   },
 

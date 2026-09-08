@@ -12,13 +12,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
 import FadeInView from "../../components/FadeInView";
 import IncidentCard from "../../components/IncidentCard";
+import ShareModal from "../../components/ShareModal";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
 import { useAuth } from "../../contexts/AuthContext";
+import type { Incident } from "../../data/incidents";
 import {
   docToIncident,
   IncidentDoc,
   subscribeMyReports,
 } from "../../services/incidents";
+import { useIncidentLikes } from "../../services/likes";
 import { colors, font, radius, shadow, spacing } from "../../theme";
 
 const segments = ["All", "Active", "Resolved"] as const;
@@ -30,6 +33,7 @@ export default function MyReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rawReports, setRawReports] = useState<IncidentDoc[]>([]);
+  const [shareIncident, setShareIncident] = useState<Incident | null>(null);
 
   const onRefresh = () => {
     if (!user) return;
@@ -80,6 +84,12 @@ export default function MyReportsScreen() {
     if (segment === "Active") return reports.filter((r) => r.active);
     return reports.filter((r) => !r.active);
   }, [segment, reports]);
+
+  const visibleIncidentIds = useMemo(() => visible.map((i) => i.id), [visible]);
+  const { likesMap, handleToggleLike } = useIncidentLikes(
+    visibleIncidentIds,
+    user?.uid
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -149,16 +159,32 @@ export default function MyReportsScreen() {
             onAction={() => router.push("/create")}
           />
         ) : (
-          visible.map((incident, index) => (
-            <IncidentCard
-              key={incident.id}
-              incident={incident}
-              index={index}
-              onPress={() => router.push(`/incident/${incident.id}`)}
-            />
-          ))
+          visible.map((incident, index) => {
+            const likeInfo = likesMap[incident.id] || {
+              count: 0,
+              userLiked: false,
+            };
+            return (
+              <IncidentCard
+                key={incident.id}
+                incident={incident}
+                index={index}
+                likesCount={likeInfo.count}
+                userHasLiked={likeInfo.userLiked}
+                onLike={() => handleToggleLike(incident.id)}
+                onShare={() => setShareIncident(incident)}
+                onPress={() => router.push(`/incident/${incident.id}`)}
+              />
+            );
+          })
         )}
       </ScrollView>
+
+      <ShareModal
+        visible={!!shareIncident}
+        incident={shareIncident}
+        onClose={() => setShareIncident(null)}
+      />
     </SafeAreaView>
   );
 }
