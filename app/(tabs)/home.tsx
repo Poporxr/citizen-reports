@@ -23,6 +23,7 @@ import {
   subscribeIncidents,
 } from "../../services/incidents";
 import { useIncidentLikes } from "../../services/likes";
+import { useUnreadNotificationCount } from "../../services/notifications";
 import { colors, font, radius, spacing } from "../../theme";
 
 export default function HomeScreen() {
@@ -33,6 +34,9 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
   const [shareIncident, setShareIncident] = useState<Incident | null>(null);
+  const unreadNotifications = useUnreadNotificationCount(user?.uid);
+  const unreadLabel =
+    unreadNotifications > 9 ? "9+" : unreadNotifications.toString();
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -89,6 +93,21 @@ export default function HomeScreen() {
           <Text style={styles.subtext}>Live community feed</Text>
         </View>
         <View style={styles.headerActions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconBtn,
+              pressed && { backgroundColor: colors.surface },
+            ]}
+            onPress={() => router.push("/notifications")}
+            accessibilityLabel="Open Notifications"
+          >
+            <Ionicons name="notifications-outline" size={21} color={colors.text} />
+            {unreadNotifications > 0 ? (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{unreadLabel}</Text>
+              </View>
+            ) : null}
+          </Pressable>
           <Pressable
             style={({ pressed }) => [
               styles.iconBtn,
@@ -231,14 +250,23 @@ const styles = StyleSheet.create({
   },
   notifBadge: {
     position: "absolute",
-    top: 9,
-    right: 9,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: 3,
+    right: 1,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
     backgroundColor: colors.danger,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: "800",
+    color: colors.primaryText,
   },
   filterSection: {
     borderBottomWidth: StyleSheet.hairlineWidth,

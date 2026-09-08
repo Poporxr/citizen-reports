@@ -6,8 +6,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { Category, Incident } from "../data/incidents";
@@ -182,6 +182,7 @@ export async function createIncident(
   // 2. Create document in Firestore incidents collection
   const incidentsCol = collection(db, "incidents");
   const newDocRef = doc(incidentsCol);
+  const notificationRef = doc(collection(db, "notifications"));
 
   const incidentData = {
     id: newDocRef.id,
@@ -197,7 +198,23 @@ export async function createIncident(
     createdAt: serverTimestamp(),
   };
 
-  await setDoc(newDocRef, incidentData);
+  const notificationData = {
+    type: "new_incident",
+    title: "New incident reported",
+    message: `${input.category} · ${incidentData.locationName || input.title.trim()}`,
+    incidentId: newDocRef.id,
+    incidentTitle: input.title.trim(),
+    category: input.category,
+    imageUrl,
+    actorId: input.userId,
+    actorName: input.userName || "Anonymous",
+    createdAt: serverTimestamp(),
+  };
+
+  const batch = writeBatch(db);
+  batch.set(newDocRef, incidentData);
+  batch.set(notificationRef, notificationData);
+  await batch.commit();
   return newDocRef.id;
 }
 
