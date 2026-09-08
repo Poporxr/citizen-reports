@@ -10,6 +10,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -43,13 +44,23 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Other: "ellipsis-horizontal-circle",
 };
 
+const openAppSettings = () => {
+  void Linking.openSettings();
+};
+
+function showPermissionSettingsAlert(title: string, message: string) {
+  Alert.alert(title, message, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Open Settings", onPress: openAppSettings },
+  ]);
+}
+
 export default function CreateIncidentScreen() {
   const router = useRouter();
   const { user, userProfile } = useAuth();
 
   const [category, setCategory] = useState<Category | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -148,14 +159,12 @@ export default function CreateIncidentScreen() {
   }, [submitted]);
 
   const handlePickFromLibrary = async () => {
-    setPhotoPickerOpen(false);
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Permission to access your photo library is required. Please enable it in your device settings."
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showPermissionSettingsAlert(
+          "Photo Access Needed",
+          "Citizen Report needs photo access so you can attach an incident picture."
         );
         return;
       }
@@ -165,6 +174,10 @@ export default function CreateIncidentScreen() {
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
+        ...(Platform.OS === "android" ? { defaultTab: "photos" as const } : null),
+        ...(Platform.OS === "ios"
+          ? { presentationStyle: ImagePicker.UIImagePickerPresentationStyle.AUTOMATIC }
+          : null),
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
@@ -181,13 +194,12 @@ export default function CreateIncidentScreen() {
   };
 
   const handleTakePhoto = async () => {
-    setPhotoPickerOpen(false);
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Permission to access camera is required to take photos."
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        showPermissionSettingsAlert(
+          "Camera Access Needed",
+          "Citizen Report needs camera access so you can take an incident picture."
         );
         return;
       }
@@ -196,6 +208,9 @@ export default function CreateIncidentScreen() {
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
+        ...(Platform.OS === "ios"
+          ? { presentationStyle: ImagePicker.UIImagePickerPresentationStyle.AUTOMATIC }
+          : null),
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
@@ -204,6 +219,10 @@ export default function CreateIncidentScreen() {
       }
     } catch (err: any) {
       console.warn("Camera error:", err);
+      Alert.alert(
+        "Unable to Open Camera",
+        "Please check your device settings to allow camera access."
+      );
     }
   };
 
@@ -289,36 +308,15 @@ export default function CreateIncidentScreen() {
 
             {/* Incident Photo Selector */}
             <FadeInView delay={150} slideFrom={15}>
-              {imageUri ? (
-                <View style={styles.photoPreviewWrapper}>
+              <View style={styles.photoArea}>
+                {imageUri ? (
                   <Image
                     source={{ uri: imageUri }}
                     style={styles.photoPreview}
                     resizeMode="cover"
                   />
-                  <Pressable
-                    style={styles.changePhotoBtn}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setPhotoPickerOpen(true);
-                    }}
-                  >
-                    <Ionicons
-                      name="camera-outline"
-                      size={16}
-                      color={colors.primaryText}
-                    />
-                    <Text style={styles.changePhotoText}>Change Photo</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <ScalePress
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setPhotoPickerOpen(true);
-                  }}
-                >
-                  <View style={styles.photoBox}>
+                ) : (
+                  <View style={styles.photoEmptyState}>
                     <View style={styles.photoIcon}>
                       <Ionicons name="camera" size={26} color={colors.primary} />
                     </View>
@@ -327,8 +325,42 @@ export default function CreateIncidentScreen() {
                       Take a photo or choose from gallery
                     </Text>
                   </View>
-                </ScalePress>
-              )}
+                )}
+
+                <View style={styles.photoActionRow}>
+                  <ScalePress
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      void handleTakePhoto();
+                    }}
+                    accessibilityLabel="Take photo"
+                  >
+                    <View style={styles.photoActionButton}>
+                      <Ionicons
+                        name="camera-outline"
+                        size={22}
+                        color={colors.primary}
+                      />
+                    </View>
+                  </ScalePress>
+
+                  <ScalePress
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      void handlePickFromLibrary();
+                    }}
+                    accessibilityLabel="Choose photo from library"
+                  >
+                    <View style={styles.photoActionButton}>
+                      <Ionicons
+                        name="images-outline"
+                        size={22}
+                        color={colors.primary}
+                      />
+                    </View>
+                  </ScalePress>
+                </View>
+              </View>
             </FadeInView>
 
             {/* Category Selector */}
@@ -456,37 +488,6 @@ export default function CreateIncidentScreen() {
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
-      {/* Photo Picker Modal */}
-      <Modal visible={photoPickerOpen} transparent animationType="fade">
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setPhotoPickerOpen(false)}
-        >
-          <View style={[styles.sheet, shadow.lg]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Add Photo</Text>
-
-            <ScalePress onPress={handleTakePhoto}>
-              <View style={[styles.option, styles.optionBorder]}>
-                <View style={styles.optionIcon}>
-                  <Ionicons name="camera" size={20} color={colors.primary} />
-                </View>
-                <Text style={styles.optionText}>Take Photo with Camera</Text>
-              </View>
-            </ScalePress>
-
-            <ScalePress onPress={handlePickFromLibrary}>
-              <View style={styles.option}>
-                <View style={styles.optionIcon}>
-                  <Ionicons name="images" size={20} color={colors.primary} />
-                </View>
-                <Text style={styles.optionText}>Choose from Photo Library</Text>
-              </View>
-            </ScalePress>
-          </View>
-        </Pressable>
-      </Modal>
 
       {/* Category Picker Modal */}
       <Modal visible={pickerOpen} transparent animationType="fade">
@@ -625,44 +626,48 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.xl,
   },
-  photoBox: {
+  photoArea: {
+    minHeight: 220,
     borderWidth: 2,
     borderStyle: "dashed",
     borderColor: colors.primaryLight,
     borderRadius: radius.xl,
     backgroundColor: colors.primaryGhost,
-    paddingVertical: spacing.xxl,
-    alignItems: "center",
-    marginBottom: spacing.xl,
-  },
-  photoPreviewWrapper: {
-    position: "relative",
-    borderRadius: radius.xl,
     overflow: "hidden",
     marginBottom: spacing.xl,
-    backgroundColor: colors.surface,
+  },
+  photoEmptyState: {
+    flex: 1,
+    minHeight: 160,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
   },
   photoPreview: {
     width: "100%",
-    height: 200,
-    borderRadius: radius.xl,
+    height: 172,
+    backgroundColor: colors.surface,
   },
-  changePhotoBtn: {
-    position: "absolute",
-    bottom: spacing.md,
-    right: spacing.md,
+  photoActionRow: {
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.pill,
+    justifyContent: "center",
+    gap: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryLight,
+    backgroundColor: colors.surfaceElevated,
+    paddingVertical: spacing.sm,
   },
-  changePhotoText: {
-    color: colors.primaryText,
-    fontSize: font.small,
-    fontWeight: "600",
+  photoActionButton: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryGhost,
+    alignItems: "center",
+    justifyContent: "center",
   },
   photoIcon: {
     width: 56,
