@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   Pressable,
@@ -13,7 +14,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
-import { getIncidentById } from "../../data/incidents";
+import type { Incident } from "../../data/incidents";
+import { docToIncident, getIncidentById } from "../../services/incidents";
 import { colors, font, radius, spacing } from "../../theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -47,16 +49,52 @@ const mockComments = [
 export default function IncidentDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const incident = getIncidentById(String(id));
+  const [incident, setIncident] = useState<Incident | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const docData = await getIncidentById(String(id));
+        if (isMounted) {
+          if (docData) {
+            setIncident(docToIncident(docData));
+          } else {
+            setIncident(null);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load incident detail:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [likesCount, setLikesCount] = useState(
-    incident ? Math.floor((Number(incident.id) * 19 + 7) % 40) + 12 : 24
-  );
+  const [likesCount, setLikesCount] = useState(24);
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState(mockComments);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   if (!incident) {
     return (
@@ -64,7 +102,7 @@ export default function IncidentDetailsScreen() {
         <EmptyState
           icon="alert-circle-outline"
           title="Incident not found"
-          message="This incident is no longer available."
+          message="This incident is no longer available or may have been removed."
           actionLabel="Go back"
           onAction={() => router.back()}
         />
@@ -378,6 +416,10 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
+  },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   /* ── Top Navigation Bar ── */

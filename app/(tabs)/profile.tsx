@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FadeInView from "../../components/FadeInView";
 import ScalePress from "../../components/ScalePress";
 import Skeleton, { ProfileCardSkeleton } from "../../components/Skeleton";
+import { useAuth } from "../../contexts/AuthContext";
+import { subscribeMyReports } from "../../services/incidents";
 import { colors, font, radius, shadow, spacing } from "../../theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -36,15 +38,45 @@ type StatItem = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, userProfile, logout } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [reportsCount, setReportsCount] = useState<number>(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
+    const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeMyReports(
+      user.uid,
+      (reports) => {
+        setReportsCount(reports.length);
+      },
+      () => {}
+    );
+    return () => unsub();
+  }, [user]);
+
+  const displayName =
+    user?.displayName || userProfile?.name || "Citizen Reporter";
+  const displayEmail = user?.email || "No email available";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "CR";
+
   const stats: StatItem[] = [
-    { label: "Reports", value: "12", icon: "document-text", color: colors.primary },
+    {
+      label: "Reports",
+      value: String(reportsCount),
+      icon: "document-text",
+      color: colors.primary,
+    },
     { label: "Upvotes", value: "87", icon: "heart", color: colors.danger },
     { label: "Following", value: "34", icon: "people", color: colors.success },
   ];
@@ -76,8 +108,14 @@ export default function ProfileScreen() {
     },
   ];
 
-  const handleLogout = () => {
-    router.replace("/");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace("/");
+    } catch (err) {
+      console.warn("Logout error:", err);
+      router.replace("/");
+    }
   };
 
   if (loading) {
@@ -134,7 +172,7 @@ export default function ProfileScreen() {
             <View style={styles.userTopRow}>
               <View style={styles.avatarOuter}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>EA</Text>
+                  <Text style={styles.avatarText}>{initials}</Text>
                 </View>
                 <View style={styles.onlineDot} />
               </View>
@@ -145,10 +183,10 @@ export default function ProfileScreen() {
 
             <View style={styles.userInfo}>
               <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-                Emmanuel Aondohemba
+                {displayName}
               </Text>
               <Text style={styles.email} numberOfLines={1}>
-                emmanuel@example.com
+                {displayEmail}
               </Text>
             </View>
 

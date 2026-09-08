@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -15,7 +15,12 @@ import EmptyState from "../../components/EmptyState";
 import FadeInView from "../../components/FadeInView";
 import IncidentCard from "../../components/IncidentCard";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
-import { filterCategories, incidents } from "../../data/incidents";
+import { filterCategories } from "../../data/incidents";
+import {
+  docToIncident,
+  IncidentDoc,
+  subscribeIncidents,
+} from "../../services/incidents";
 import { colors, font, radius, spacing } from "../../theme";
 
 export default function ExploreScreen() {
@@ -24,17 +29,35 @@ export default function ExploreScreen() {
   const [selected, setSelected] = useState<string>("All");
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
+    setLoading(true);
+    const unsubscribe = subscribeIncidents(
+      (data) => {
+        setRawIncidents(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("Explore incidents subscription error:", error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
   }, []);
 
-  const visible = incidents.filter((incident) => {
-    const matchesCategory = selected === "All" || incident.category === selected;
-    const text = `${incident.title} ${incident.location}`.toLowerCase();
-    return matchesCategory && text.includes(query.trim().toLowerCase());
-  });
+  const incidents = useMemo(() => {
+    return rawIncidents.map(docToIncident);
+  }, [rawIncidents]);
+
+  const visible = useMemo(() => {
+    return incidents.filter((incident) => {
+      const matchesCategory =
+        selected === "All" || incident.category === selected;
+      const text = `${incident.title} ${incident.location}`.toLowerCase();
+      return matchesCategory && text.includes(query.trim().toLowerCase());
+    });
+  }, [incidents, selected, query]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>

@@ -1,28 +1,50 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CategoryChip from "../../components/CategoryChip";
+import EmptyState from "../../components/EmptyState";
 import IncidentCard from "../../components/IncidentCard";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
-import { filterCategories, incidents } from "../../data/incidents";
+import { filterCategories } from "../../data/incidents";
+import {
+  docToIncident,
+  IncidentDoc,
+  subscribeIncidents,
+} from "../../services/incidents";
 import { colors, font, radius, spacing } from "../../theme";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [selected, setSelected] = useState<string>("All");
   const [loading, setLoading] = useState(true);
+  const [rawIncidents, setRawIncidents] = useState<IncidentDoc[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
+    setLoading(true);
+    const unsubscribe = subscribeIncidents(
+      (data) => {
+        setRawIncidents(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("Realtime incidents subscription error:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
-  const visible =
-    selected === "All"
-      ? incidents
-      : incidents.filter((incident) => incident.category === selected);
+  const incidents = useMemo(() => {
+    return rawIncidents.map(docToIncident);
+  }, [rawIncidents]);
+
+  const visible = useMemo(() => {
+    if (selected === "All") return incidents;
+    return incidents.filter((incident) => incident.category === selected);
+  }, [selected, incidents]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -86,6 +108,18 @@ export default function HomeScreen() {
             <IncidentCardSkeleton />
             <IncidentCardSkeleton />
           </View>
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon="shield-checkmark-outline"
+            title="No reports found"
+            message={
+              selected === "All"
+                ? "No incidents have been reported yet. Keep your neighborhood safe by reporting first."
+                : `No reports found under the category "${selected}".`
+            }
+            actionLabel="Report an Incident"
+            onAction={() => router.push("/create")}
+          />
         ) : (
           <View style={styles.feedContainer}>
             {visible.map((incident, index) => (

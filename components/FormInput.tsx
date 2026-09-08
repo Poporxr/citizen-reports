@@ -8,6 +8,10 @@ type Props = {
   value?: string;
   onChangeText?: (text: string) => void;
   multiline?: boolean;
+  secureTextEntry?: boolean;
+  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  autoCorrect?: boolean;
 };
 
 export default function FormInput({
@@ -16,6 +20,10 @@ export default function FormInput({
   value,
   onChangeText,
   multiline = false,
+  secureTextEntry = false,
+  keyboardType = "default",
+  autoCapitalize = "none",
+  autoCorrect = true,
 }: Props) {
   const [focused, setFocused] = useState(false);
 
@@ -28,6 +36,10 @@ export default function FormInput({
         value={value}
         onChangeText={onChangeText}
         multiline={multiline}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
         textAlignVertical={multiline ? "top" : "center"}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}

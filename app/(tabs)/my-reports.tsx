@@ -1,32 +1,60 @@
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
 import FadeInView from "../../components/FadeInView";
 import IncidentCard from "../../components/IncidentCard";
 import { IncidentCardSkeleton } from "../../components/Skeleton";
-import { myReports } from "../../data/incidents";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  docToIncident,
+  IncidentDoc,
+  subscribeMyReports,
+} from "../../services/incidents";
 import { colors, font, radius, shadow, spacing } from "../../theme";
 
 const segments = ["All", "Active", "Resolved"] as const;
 
 export default function MyReportsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [segment, setSegment] = useState<(typeof segments)[number]>("All");
   const [loading, setLoading] = useState(true);
+  const [rawReports, setRawReports] = useState<IncidentDoc[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!user) {
+      setRawReports([]);
+      setLoading(false);
+      return;
+    }
 
-  const visible =
-    segment === "All"
-      ? myReports
-      : segment === "Active"
-      ? myReports.filter((report) => report.active)
-      : myReports.filter((report) => !report.active);
+    setLoading(true);
+    const unsubscribe = subscribeMyReports(
+      user.uid,
+      (data) => {
+        setRawReports(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("My reports error:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const reports = useMemo(() => {
+    return rawReports.map(docToIncident);
+  }, [rawReports]);
+
+  const visible = useMemo(() => {
+    if (segment === "All") return reports;
+    if (segment === "Active") return reports.filter((r) => r.active);
+    return reports.filter((r) => !r.active);
+  }, [segment, reports]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -34,7 +62,7 @@ export default function MyReportsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>My Reports</Text>
           <Text style={styles.subtitle}>
-            {myReports.length} incident{myReports.length !== 1 ? "s" : ""} submitted
+            {reports.length} incident{reports.length !== 1 ? "s" : ""} submitted
           </Text>
         </View>
       </FadeInView>
@@ -72,14 +100,18 @@ export default function MyReportsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
-          <>
+          <View>
             <IncidentCardSkeleton />
             <IncidentCardSkeleton />
-          </>
+          </View>
         ) : visible.length === 0 ? (
           <EmptyState
             title="No reports yet"
-            message="When you report an incident, it'll appear here."
+            message={
+              segment === "All"
+                ? "When you report an incident, it'll appear here."
+                : `No ${segment.toLowerCase()} reports found.`
+            }
             actionLabel="Report an Incident"
             onAction={() => router.push("/create")}
           />
